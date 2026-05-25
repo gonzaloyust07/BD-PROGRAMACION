@@ -1,0 +1,67 @@
+PROYECTO_VOLEYSTATS/
+│
+├── 🛢️ ENTORNO 1: MOTOR MYSQL (Gestión de Datos y Relaciones)
+│   └── 💾 Base de Datos: liga_voley
+│       ├── 📊 Tabla: equipos (id_equipo [PK], nombre, presupuesto)
+│       │   └── 📌 [Énfasis]: Almacena la entidad principal. El campo 'nombre' es UNIQUE para evitar duplicados.
+│       ├── 📊 Tabla: jugadores (id_jugador [PK], nombre, edad, id_equipo [FK]) ─── [Relación 1:N]
+│       │   └── 📌 [Énfasis]: La clave ajena (FK) vincula al jugador con su club. Incluye 'ON DELETE CASCADE'.
+│       ├── 📊 Tabla: partidos (id_partido [PK], fecha, id_local [FK], id_visitante [FK]) ─── [Calendario]
+│       │   └── 📌 [Énfasis]: Resuelve el CALENDARIO. Dos FK apuntan a la misma tabla 'equipos' (Local vs Visitante).
+│       └── 📊 Tabla: jugador_partido (id_jugador [PK,FK], id_partido [PK,FK], puntos) ─── [Relación N:M]
+│           └── 📌 [Énfasis]: Tabla intermedia crucial. Rompe la relación muchos a muchos para almacenar estadísticas por partido.
+│
+└── 💻 ENTORNO 2: IDE INTELLIJ IDEA (Código Fuente Java)
+    └── 📂 conection/
+        │
+        ├── 🔌 ConexionDB.java ───────────────── [Conector JDBC / Enlace directo a MySQL]
+        │   ├── 💡 [¿Qué hace?]: Gestiona la apertura y cierre de canales de comunicación con el servidor MySQL.
+        │   └── 🔍 [Líneas clave]:
+        │       ├── 🔸 Connection conn = DriverManager.getConnection(URL, USER, PASS); -> Lanza la conexión activa.
+        │       └── 🔸 catch (SQLException e) { ... } -> Captura fallos de red o credenciales incorrectas.
+        │
+        ├── 📂 datas/ ───────────────────────── [Estructura del Sistema]
+        │   │
+        │   ├── 👤 Persona.java ──────────────── [Tema 7: POO (Clase abstracta) / Tema 6: Strings]
+        │   │   ├── 💡 [¿Qué hace?]: Clase madre abstracta que define los atributos comunes de cualquier miembro del club.
+        │   │   └── 🔍 [Líneas clave]:
+        │   │       ├── 🔸 public abstract class Persona { ... } -> Impide que se creen instancias genéricas de Persona.
+        │   │       └── 🔸 protected String nombre; -> Atributo protegido manipulado con métodos de la clase String.
+        │   │
+        │   ├── 🏃‍♂️ Jugador.java ──────────────── [Tema 8: Herencia (Hereda de Persona)]
+        │   │   ├── 💡 [¿Qué hace?]: Representa a los deportistas, extendiendo las capacidades de la clase Persona.
+        │   │   └── 🔍 [Líneas clave]:
+        │   │       ├── 🔸 public class Jugador extends Persona { ... } -> Establece la relación de herencia.
+        │   │       └── 🔸 super(nombre); -> Invoca obligatoriamente al constructor de la clase madre (Persona).
+        │   │
+        │   ├── 🛡️ Equipo.java ───────────────── [Tema 5: ArrayList / Tema 12: List / Tema 13: Set]
+        │   │   ├── 💡 [¿Qué hace?]: Agrupa jugadores y encapsula las reglas de negocio de la liga (mínimo de fichas).
+        │   │   └── 🔍 [Líneas clave]:
+        │   │       ├── 🔸 private List<Jugador> plantilla = new ArrayList<>(); -> List dinámico para gestionar el grupo.
+        │   │       └── 🔸 private Set<Integer> inscritos = new HashSet<>(); -> Set que garantiza IDs únicos sin duplicados.
+        │   │
+        │   └── 🏐 Partido.java ──────────────── [Tema 13: Map]
+        │       ├── 💡 [¿Qué hace?]: Gestiona los datos de un enfrentamiento y las estadísticas individuales obtenidas.
+        │       └── 🔍 [Líneas clave]:
+        │           ├── 🔸 private Map<Integer, Integer> estadisticas = new HashMap<>(); -> Almacena clave(id_jugador)->valor(puntos).
+        │           └── 🔸 estadisticas.put(idJugador, puntos); -> Inserta o actualiza la puntuación en el mapa de datos.
+        │
+        ├── 📂 brain/ ────────────── [Almacenamiento en Disco]
+        │   │
+        │   ├── ⚙️ Operaciones.java ──────────── [Tema 9: Interfaces]
+        │   │   ├── 💡 [¿Qué hace?]: Contrato formal que obliga a implementar la estructura de guardado de datos.
+        │   │   └── 🔍 [Líneas clave]:
+        │   │       └── 🔸 public interface Operaciones<T> { void guardar(T objeto); } -> Definición abstracta del método.
+        │   │
+        │   └── 💾 GestorArchivos.java ───────── [Manejo de Ficheros Físicos]
+        │       ├── 💡 [¿Qué hace?]: Módulo encargado de escribir datos directamente en el almacenamiento local del ordenador.
+        │       └── 🔍 [Líneas clave]:
+        │           ├── 🔸 BufferedWriter bw = new BufferedWriter(new FileWriter("...")); -> [Tema 10]: Escritura de texto (Calendario).
+        │           └── 🔸 DataOutputStream dos = new DataOutputStream(new FileOutputStream("...")); -> [Tema 11]: Escritura Binaria.
+        │
+        └── 🚀 Main.java ─────────────────────── [Controlador de la Aplicación]
+            ├── 💡 [¿Qué hace?]: Punto de entrada del programa. Ejecuta el bucle del menú y coordina las llamadas a MySQL y ficheros.
+            └── 🔍 [Líneas clave]:
+                ├── 🔸 do { ... } while (opcion != 3); -> [Tema 3]: Bucle infinito controlado para mantener viva la consola.
+                ├── 🔸 switch (opcion) { ... } -> [Tema 2]: Condicional múltiple que deriva las acciones según la entrada.
+                └── 🔸 public static boolean validarEquipo(Equipo e) { ... } -> [Tema 4]: Función modular que evalúa el mínimo de 7.
