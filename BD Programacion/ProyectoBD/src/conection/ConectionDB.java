@@ -6,7 +6,7 @@ import java.sql.SQLException;
 
 // Enlace directo JDBC a MySQL
 public class ConectionDB {
-    private static final String URL = "jdbc:mysql://localhost:3306/liga_voley?useSSL=false&serverTimezone=UTC";
+    private static final String URL = "jdbc:mysql://localhost:3306/voleibol_espana?useSSL=false&serverTimezone=UTC";
     private static final String USER = "root";
     private static final String PASS = "root";
 
