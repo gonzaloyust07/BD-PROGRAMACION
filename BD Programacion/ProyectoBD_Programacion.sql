@@ -1,121 +1,87 @@
--- ============================================================
---  SCRIPT DE CREACIÓN: liga_voley
---  Proyecto: Gestión de Liga de Voleibol
---  Usuario MySQL: root / Contraseña: root
--- ============================================================
+-- Esquema para una instalación nueva de la aplicación de gestión de vóley.
+-- Para una base voleibol_espana antigua, no ejecutes este archivo:
+-- ejecuta Migracion_voleibol_espana.sql una sola vez.
 
--- 1. Crear la base de datos (si no existe)
-CREATE DATABASE IF NOT EXISTS liga_voley
+CREATE DATABASE IF NOT EXISTS voleibol_espana
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_spanish_ci;
 
-USE liga_voley;
+USE voleibol_espana;
 
--- ============================================================
--- TABLA: entrenador
--- ============================================================
-CREATE TABLE IF NOT EXISTS entrenador (
-    idEntrenador    INT          NOT NULL AUTO_INCREMENT,
-    nombreCompleto  VARCHAR(100) NOT NULL,
-    edad            INT          NOT NULL,
-    nacionalidad    VARCHAR(60)  NOT NULL,
-    precio          DOUBLE       NOT NULL DEFAULT 0.0,
-    PRIMARY KEY (idEntrenador)
+CREATE TABLE IF NOT EXISTS ccaa (
+    id_ccaa INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(80) NOT NULL,
+    capital_regional VARCHAR(100) NOT NULL,
+    PRIMARY KEY (id_ccaa),
+    UNIQUE KEY uq_ccaa_nombre (nombre)
 );
 
--- ============================================================
--- TABLA: equipo
--- ============================================================
-CREATE TABLE IF NOT EXISTS equipo (
-    idEquipo        INT          NOT NULL AUTO_INCREMENT,
-    nombre          VARCHAR(100) NOT NULL,
-    presupuesto     DOUBLE       NOT NULL DEFAULT 0.0,
-    idEntrenador    INT          NULL,          -- puede no tener entrenador aún
-    PRIMARY KEY (idEquipo),
-    FOREIGN KEY (idEntrenador) REFERENCES entrenador(idEntrenador)
-        ON DELETE SET NULL
+CREATE TABLE IF NOT EXISTS equipos (
+    id_equipo INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    rama VARCHAR(30) NOT NULL,
+    division VARCHAR(100) NOT NULL,
+    localidad VARCHAR(100) NOT NULL,
+    fundacion INT NULL,
+    id_ccaa INT NOT NULL,
+    PRIMARY KEY (id_equipo),
+    CONSTRAINT fk_equipos_ccaa FOREIGN KEY (id_ccaa)
+        REFERENCES ccaa (id_ccaa)
         ON UPDATE CASCADE
 );
 
--- ============================================================
--- TABLA: jugador
--- ============================================================
-CREATE TABLE IF NOT EXISTS jugador (
-    idJugador       INT          NOT NULL AUTO_INCREMENT,
-    nombreCompleto  VARCHAR(100) NOT NULL,
-    nombreCamiseta  VARCHAR(60)  NOT NULL,
-    numero          INT          NOT NULL,
-    edad            INT          NOT NULL,
-    nacionalidad    VARCHAR(60)  NOT NULL,
-    posicion        VARCHAR(40)  NOT NULL,
-    lesionado       TINYINT(1)   NOT NULL DEFAULT 0,   -- 0 = sano, 1 = lesionado
-    precio          DOUBLE       NOT NULL DEFAULT 0.0,
-    PRIMARY KEY (idJugador)
+CREATE TABLE IF NOT EXISTS jugadores (
+    id_jugador INT NOT NULL AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    posicion VARCHAR(40) NOT NULL,
+    numero INT NOT NULL,
+    edad INT NOT NULL,
+    nacionalidad VARCHAR(60) NOT NULL,
+    capitan TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (id_jugador)
 );
 
--- ============================================================
--- TABLA: equipo_jugador  (relación N:M entre equipo y jugador)
--- Un jugador puede haber estado en varios equipos (traspasos)
--- Un equipo tiene varios jugadores
--- ============================================================
 CREATE TABLE IF NOT EXISTS equipo_jugador (
-    idEquipo        INT  NOT NULL,
-    idJugador       INT  NOT NULL,
-    PRIMARY KEY (idEquipo, idJugador),
-    FOREIGN KEY (idEquipo)  REFERENCES equipo(idEquipo)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (idJugador) REFERENCES jugador(idJugador)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    id_equipo INT NOT NULL,
+    id_jugador INT NOT NULL,
+    PRIMARY KEY (id_equipo, id_jugador),
+    CONSTRAINT fk_equipo_jugador_equipo FOREIGN KEY (id_equipo)
+        REFERENCES equipos (id_equipo)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    CONSTRAINT fk_equipo_jugador_jugador FOREIGN KEY (id_jugador)
+        REFERENCES jugadores (id_jugador)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
 
--- ============================================================
--- DATOS DE EJEMPLO (opcionales, para probar)
--- ============================================================
+CREATE TABLE IF NOT EXISTS usuarios (
+    id_usuario INT NOT NULL AUTO_INCREMENT,
+    login VARCHAR(60) NOT NULL,
+    password VARCHAR(100) NOT NULL,
+    PRIMARY KEY (id_usuario),
+    UNIQUE KEY uq_usuarios_login (login)
+);
 
-INSERT INTO entrenador (nombreCompleto, edad, nacionalidad, precio) VALUES
-('Carlos Martínez',  52, 'Española',   95000.0),
-('Luca Rossi',       45, 'Italiana',  120000.0);
+INSERT IGNORE INTO ccaa (nombre, capital_regional) VALUES
+    ('Andalucía', 'Sevilla'),
+    ('Aragón', 'Zaragoza'),
+    ('Principado de Asturias', 'Oviedo'),
+    ('Islas Baleares', 'Palma'),
+    ('Canarias', 'Las Palmas de Gran Canaria'),
+    ('Cantabria', 'Santander'),
+    ('Castilla-La Mancha', 'Toledo'),
+    ('Castilla y León', 'Valladolid'),
+    ('Cataluña', 'Barcelona'),
+    ('Comunidad Valenciana', 'Valencia'),
+    ('Extremadura', 'Mérida'),
+    ('Galicia', 'Santiago de Compostela'),
+    ('Comunidad de Madrid', 'Madrid'),
+    ('Región de Murcia', 'Murcia'),
+    ('Comunidad Foral de Navarra', 'Pamplona'),
+    ('País Vasco', 'Vitoria-Gasteiz'),
+    ('La Rioja', 'Logroño'),
+    ('Ceuta', 'Ceuta'),
+    ('Melilla', 'Melilla');
 
-INSERT INTO equipo (nombre, presupuesto, idEntrenador) VALUES
-('Club Voley Madrid',    500000.0, 1),
-('Deportivo Coastal',    320000.0, 2);
-
-INSERT INTO jugador (nombreCompleto, nombreCamiseta, numero, edad, nacionalidad, posicion, precio) VALUES
-('Alejandro García',  'GARCÍA',   4,  24, 'Española',  'Líbero',        35000.0),
-('Bruno Fernández',   'BRUNO',    7,  27, 'Española',  'Central',       42000.0),
-('Marco Conti',       'CONTI',   10,  29, 'Italiana',  'Opuesto',       58000.0),
-('Pedro Alves',       'ALVES',    3,  22, 'Portuguesa','Receptor',      27000.0),
-('Iván Torres',       'TORRES',   6,  31, 'Española',  'Colocador',     61000.0),
-('Sergio Ruiz',       'RUIZ',     9,  25, 'Española',  'Central',       39000.0),
-('Antoine Dupont',    'DUPONT',  11,  26, 'Francesa',  'Receptor',      44000.0),
-('Mateo López',       'LÓPEZ',    2,  23, 'Argentina', 'Líbero',        30000.0),
-('Nicolás Vargas',    'VARGAS',   5,  28, 'Chilena',   'Opuesto',       52000.0),
-('Luis Castro',       'CASTRO',   8,  30, 'Española',  'Colocador',     47000.0);
-
--- Asignar jugadores 1-7 al equipo 1, jugadores 8-10 al equipo 2
-INSERT INTO equipo_jugador (idEquipo, idJugador) VALUES
-(1, 1),(1, 2),(1, 3),(1, 4),(1, 5),(1, 6),(1, 7),
-(2, 8),(2, 9),(2,10);
-
--- ============================================================
--- CONSULTAS DE EJEMPLO (para practicar / mostrar en el documento)
--- ============================================================
-
--- Ver todos los jugadores de un equipo concreto
--- SELECT j.* FROM jugador j
--- JOIN equipo_jugador ej ON j.idJugador = ej.idJugador
--- WHERE ej.idEquipo = 1;
-
--- Ver todos los equipos con su entrenador
--- SELECT e.nombre, e.presupuesto, en.nombreCompleto AS entrenador
--- FROM equipo e
--- LEFT JOIN entrenador en ON e.idEntrenador = en.idEntrenador;
-
--- Ver jugadores lesionados
--- SELECT * FROM jugador WHERE lesionado = 1;
-
--- Contar jugadores por equipo
--- SELECT e.nombre, COUNT(ej.idJugador) AS totalJugadores
--- FROM equipo e
--- LEFT JOIN equipo_jugador ej ON e.idEquipo = ej.idEquipo
--- GROUP BY e.idEquipo;
+INSERT IGNORE INTO usuarios (login, password) VALUES ('admin', 'admin');

@@ -1,259 +1,251 @@
 package conection;
 
-import datas.Entrenador;
-import datas.Equipo;
-import datas.Jugador;
+import datas.Comunidad;
+import datas.EquipoLiga;
+import datas.JugadorLiga;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class LigaDAO {
 
-    //  EQUIPOS
-    public static int insertarEquipo(Equipo e) {
-        String sql = "INSERT INTO equipo (nombre, presupuesto) VALUES (?, ?)";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, e.getNombre());
-            ps.setDouble(2, e.getPresupuesto());
-            ps.executeUpdate();
-
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) return rs.getInt(1);
-
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al insertar equipo: " + ex.getMessage());
-        }
-        return -1;
-    }
-
-    // Devuelve todos los equipos de la BD
-    public static List<Equipo> obtenerTodosEquipos() {
-        List<Equipo> lista = new ArrayList<>();
-        String sql = "SELECT * FROM equipo";
-        try (Connection c = ConectionDB.conectar();
-             Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-
-            while (rs.next()) {
-                Equipo eq = new Equipo(rs.getString("nombre"), rs.getDouble("presupuesto"));
-                lista.add(eq);
+    public static boolean autenticar(String usuario, String password) throws SQLException {
+        String sql = "SELECT 1 FROM usuarios WHERE login = ? AND password = ?";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setString(1, usuario);
+            sentencia.setString(2, password);
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                return resultado.next();
             }
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al obtener equipos: " + ex.getMessage());
         }
-        return lista;
     }
 
-    //  JUGADORES
-    public static int insertarJugador(Jugador j, int idEquipo) {
-        String sqlJ = "INSERT INTO jugador (nombreCompleto, nombreCamiseta, numero, edad, nacionalidad, posicion, precio) " +
-                      "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sqlJ, Statement.RETURN_GENERATED_KEYS)) {
+    public static List<EquipoLiga> obtenerEquipos() throws SQLException {
+        List<EquipoLiga> equipos = new ArrayList<>();
+        String sql = "SELECT e.id_equipo, e.nombre, e.rama, e.division, e.localidad, " +
+                "c.nombre AS comunidad, e.fundacion " +
+                "FROM equipos e JOIN ccaa c ON e.id_ccaa = c.id_ccaa ORDER BY e.nombre";
 
-            ps.setString(1, j.getNombreCompleto());
-            ps.setString(2, j.getNombreCamiseta());
-            ps.setInt   (3, j.getNumero());
-            ps.setInt   (4, j.getEdad());
-            ps.setString(5, j.getNacionalidad());
-            ps.setString(6, j.getPosicion());
-            ps.setDouble(7, j.getPrecio());
-            ps.executeUpdate();
-
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                int idGenerado = rs.getInt(1);
-                // Insertar en la tabla N:M
-                vincularJugadorEquipo(idEquipo, idGenerado, c);
-                return idGenerado;
+        try (Connection conexion = ConectionDB.conectar();
+             Statement sentencia = conexion.createStatement();
+             ResultSet resultado = sentencia.executeQuery(sql)) {
+            while (resultado.next()) {
+                Object anio = resultado.getObject("fundacion");
+                equipos.add(new EquipoLiga(
+                        resultado.getInt("id_equipo"),
+                        resultado.getString("nombre"),
+                        resultado.getString("rama"),
+                        resultado.getString("division"),
+                        resultado.getString("localidad"),
+                        resultado.getString("comunidad"),
+                        anio == null ? null : ((Number) anio).intValue()));
             }
-
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al insertar jugador: " + ex.getMessage());
         }
-        return -1;
+        return equipos;
     }
 
-    /** Vincula jugador-equipo en la tabla equipo_jugador */
-    private static void vincularJugadorEquipo(int idEquipo, int idJugador, Connection c) throws SQLException {
-        String sql = "INSERT IGNORE INTO equipo_jugador (idEquipo, idJugador) VALUES (?, ?)";
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, idEquipo);
-            ps.setInt(2, idJugador);
-            ps.executeUpdate();
+    public static List<Comunidad> obtenerComunidades() throws SQLException {
+        List<Comunidad> comunidades = new ArrayList<>();
+        String sql = "SELECT id_ccaa, nombre FROM ccaa ORDER BY nombre";
+        try (Connection conexion = ConectionDB.conectar();
+             Statement sentencia = conexion.createStatement();
+             ResultSet resultado = sentencia.executeQuery(sql)) {
+            while (resultado.next()) {
+                comunidades.add(new Comunidad(
+                        resultado.getInt("id_ccaa"),
+                        resultado.getString("nombre")));
+            }
+        }
+        return comunidades;
+    }
+
+    public static List<JugadorLiga> obtenerJugadores(int idEquipo) throws SQLException {
+        List<JugadorLiga> jugadores = new ArrayList<>();
+        String sql = "SELECT j.id_jugador, j.nombre, j.posicion, j.numero, j.edad, " +
+                "j.nacionalidad, j.capitan, e.id_equipo, e.nombre AS equipo " +
+                "FROM jugadores j JOIN equipo_jugador ej ON j.id_jugador = ej.id_jugador " +
+                "JOIN equipos e ON ej.id_equipo = e.id_equipo " +
+                "WHERE ? = 0 OR e.id_equipo = ? ORDER BY j.nombre";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idEquipo);
+            sentencia.setInt(2, idEquipo);
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                while (resultado.next()) {
+                    jugadores.add(new JugadorLiga(
+                            resultado.getInt("id_jugador"),
+                            resultado.getString("nombre"),
+                            resultado.getString("posicion"),
+                            resultado.getInt("numero"),
+                            resultado.getInt("edad"),
+                            resultado.getString("nacionalidad"),
+                            resultado.getBoolean("capitan"),
+                            resultado.getInt("id_equipo"),
+                            resultado.getString("equipo")));
+                }
+            }
+        }
+        return jugadores;
+    }
+
+    public static int insertarEquipo(String nombre, String rama, String division,
+                                     String localidad, Integer fundacion, int idComunidad)
+            throws SQLException {
+        String sql = "INSERT INTO equipos (nombre, rama, division, localidad, fundacion, id_ccaa) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            sentencia.setString(1, nombre);
+            sentencia.setString(2, rama);
+            sentencia.setString(3, division);
+            sentencia.setString(4, localidad);
+            if (fundacion == null) {
+                sentencia.setNull(5, java.sql.Types.INTEGER);
+            } else {
+                sentencia.setInt(5, fundacion);
+            }
+            sentencia.setInt(6, idComunidad);
+            sentencia.executeUpdate();
+            try (ResultSet claves = sentencia.getGeneratedKeys()) {
+                if (claves.next()) {
+                    return claves.getInt(1);
+                }
+            }
+        }
+        throw new SQLException("MySQL no devolvió el ID del equipo insertado.");
+    }
+
+    public static void actualizarEquipo(int idEquipo, String nombre, String rama, String division,
+                                        String localidad, Integer fundacion, int idComunidad)
+            throws SQLException {
+        String sql = "UPDATE equipos SET nombre = ?, rama = ?, division = ?, localidad = ?, " +
+                "fundacion = ?, id_ccaa = ? WHERE id_equipo = ?";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setString(1, nombre);
+            sentencia.setString(2, rama);
+            sentencia.setString(3, division);
+            sentencia.setString(4, localidad);
+            if (fundacion == null) {
+                sentencia.setNull(5, java.sql.Types.INTEGER);
+            } else {
+                sentencia.setInt(5, fundacion);
+            }
+            sentencia.setInt(6, idComunidad);
+            sentencia.setInt(7, idEquipo);
+            if (sentencia.executeUpdate() == 0 && !existeRegistro(
+                    conexion, "equipos", "id_equipo", idEquipo)) {
+                throw new SQLException("El equipo ya no existe en la base de datos.");
+            }
         }
     }
 
-    /** Elimina un jugador por su ID (también borra la relación N:M por CASCADE) */
-    public static boolean borrarJugador(int idJugador) {
-        String sql = "DELETE FROM jugador WHERE idJugador = ?";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, idJugador);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al borrar jugador: " + ex.getMessage());
+    public static void eliminarEquipo(int idEquipo) throws SQLException {
+        String sql = "DELETE FROM equipos WHERE id_equipo = ?";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idEquipo);
+            if (sentencia.executeUpdate() == 0) {
+                throw new SQLException("El equipo ya no existe en la base de datos.");
+            }
         }
-        return false;
     }
 
-    /** Actualiza el estado de lesión de un jugador */
-    public static boolean actualizarLesion(int idJugador, boolean lesionado) {
-        String sql = "UPDATE jugador SET lesionado = ? WHERE idJugador = ?";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, lesionado ? 1 : 0);
-            ps.setInt(2, idJugador);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al actualizar lesión: " + ex.getMessage());
-        }
-        return false;
-    }
-
-    /** Traspaso: cambia la asociación equipo_jugador de origen a destino */
-    public static boolean traspasar(int idJugador, int idEquipoOrigen, int idEquipoDestino) {
-        String sqlDel = "DELETE FROM equipo_jugador WHERE idEquipo = ? AND idJugador = ?";
-        String sqlIns = "INSERT IGNORE INTO equipo_jugador (idEquipo, idJugador) VALUES (?, ?)";
-        try (Connection c = ConectionDB.conectar()) {
-            c.setAutoCommit(false);  // transacción
-            try (PreparedStatement psDel = c.prepareStatement(sqlDel);
-                 PreparedStatement psIns = c.prepareStatement(sqlIns)) {
-
-                psDel.setInt(1, idEquipoOrigen);
-                psDel.setInt(2, idJugador);
-                psDel.executeUpdate();
-
-                psIns.setInt(1, idEquipoDestino);
-                psIns.setInt(2, idJugador);
-                psIns.executeUpdate();
-
-                c.commit();
-                return true;
+    public static void insertarJugador(String nombre, String posicion, int numero, int edad,
+                                       String nacionalidad, boolean capitan, int idEquipo)
+            throws SQLException {
+        String insertarJugador = "INSERT INTO jugadores " +
+                "(nombre, posicion, numero, edad, nacionalidad, capitan) VALUES (?, ?, ?, ?, ?, ?)";
+        String asignarEquipo = "INSERT INTO equipo_jugador (id_equipo, id_jugador) VALUES (?, ?)";
+        try (Connection conexion = ConectionDB.conectar()) {
+            conexion.setAutoCommit(false);
+            try (PreparedStatement sentenciaJugador = conexion.prepareStatement(
+                    insertarJugador, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement sentenciaEquipo = conexion.prepareStatement(asignarEquipo)) {
+                sentenciaJugador.setString(1, nombre);
+                sentenciaJugador.setString(2, posicion);
+                sentenciaJugador.setInt(3, numero);
+                sentenciaJugador.setInt(4, edad);
+                sentenciaJugador.setString(5, nacionalidad);
+                sentenciaJugador.setBoolean(6, capitan);
+                sentenciaJugador.executeUpdate();
+                try (ResultSet claves = sentenciaJugador.getGeneratedKeys()) {
+                    if (!claves.next()) {
+                        throw new SQLException("MySQL no devolvió el ID del jugador insertado.");
+                    }
+                    sentenciaEquipo.setInt(1, idEquipo);
+                    sentenciaEquipo.setInt(2, claves.getInt(1));
+                    sentenciaEquipo.executeUpdate();
+                }
+                conexion.commit();
             } catch (SQLException ex) {
-                c.rollback();
-                System.err.println("❌ Error en traspaso (rollback): " + ex.getMessage());
+                conexion.rollback();
+                throw ex;
             }
-        } catch (SQLException ex) {
-            System.err.println("❌ Error de conexión en traspaso: " + ex.getMessage());
-        }
-        return false;
-    }
-
-    /** Obtiene los jugadores de un equipo concreto (JOIN N:M) */
-    public static List<Jugador> obtenerJugadoresDeEquipo(int idEquipo) {
-        List<Jugador> lista = new ArrayList<>();
-        String sql = "SELECT j.* FROM jugador j " +
-                     "JOIN equipo_jugador ej ON j.idJugador = ej.idJugador " +
-                     "WHERE ej.idEquipo = ?";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, idEquipo);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                Jugador j = new Jugador(
-                    rs.getString("nombreCompleto"),
-                    rs.getString("nombreCamiseta"),
-                    rs.getInt("numero"),
-                    rs.getInt("edad"),
-                    rs.getString("nacionalidad"),
-                    rs.getString("posicion"),
-                    rs.getDouble("precio")
-                );
-                j.setLesionado(rs.getInt("lesionado") == 1);
-                lista.add(j);
-            }
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al obtener jugadores: " + ex.getMessage());
-        }
-        return lista;
-    }
-
-    // ================================================================
-    //  ENTRENADORES
-    // ================================================================
-
-    /** Inserta un entrenador y lo asigna a un equipo */
-    public static int insertarEntrenador(Entrenador en, int idEquipo) {
-        String sqlE = "INSERT INTO entrenador (nombreCompleto, edad, nacionalidad, precio) VALUES (?, ?, ?, ?)";
-        try (Connection c = ConectionDB.conectar();
-             PreparedStatement ps = c.prepareStatement(sqlE, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, en.getNombreCompleto());
-            ps.setInt   (2, en.getEdad());
-            ps.setString(3, en.getNacionalidad());
-            ps.setDouble(4, en.getPrecio());
-            ps.executeUpdate();
-
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next()) {
-                int idGenerado = rs.getInt(1);
-                // Actualizar equipo con su entrenador
-                actualizarEntrenadorEquipo(idEquipo, idGenerado, c);
-                return idGenerado;
-            }
-
-        } catch (SQLException ex) {
-            System.err.println("❌ Error al insertar entrenador: " + ex.getMessage());
-        }
-        return -1;
-    }
-
-    private static void actualizarEntrenadorEquipo(int idEquipo, int idEntrenador, Connection c) throws SQLException {
-        String sql = "UPDATE equipo SET idEntrenador = ? WHERE idEquipo = ?";
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, idEntrenador);
-            ps.setInt(2, idEquipo);
-            ps.executeUpdate();
         }
     }
 
-    // ================================================================
-    //  CONSULTAS EXTRA (para el documento de la profesora)
-    // ================================================================
-
-    /** Muestra todos los equipos con el nombre de su entrenador (JOIN 2 tablas) */
-    public static void mostrarEquiposConEntrenador() {
-        String sql = "SELECT e.nombre AS equipo, e.presupuesto, " +
-                     "COALESCE(en.nombreCompleto, 'Sin asignar') AS entrenador " +
-                     "FROM equipo e " +
-                     "LEFT JOIN entrenador en ON e.idEntrenador = en.idEntrenador";
-        try (Connection c = ConectionDB.conectar();
-             Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-
-            System.out.println("\n--- Equipos con entrenador ---");
-            while (rs.next()) {
-                System.out.printf("  %-25s | Presupuesto: %10.0f € | Entrenador: %s%n",
-                    rs.getString("equipo"),
-                    rs.getDouble("presupuesto"),
-                    rs.getString("entrenador"));
+    public static void actualizarJugador(int idJugador, String nombre, String posicion, int numero,
+                                         int edad, String nacionalidad, boolean capitan, int idEquipo)
+            throws SQLException {
+        String actualizar = "UPDATE jugadores SET nombre = ?, posicion = ?, numero = ?, edad = ?, " +
+                "nacionalidad = ?, capitan = ? WHERE id_jugador = ?";
+        String quitarEquipo = "DELETE FROM equipo_jugador WHERE id_jugador = ?";
+        String asignarEquipo = "INSERT INTO equipo_jugador (id_equipo, id_jugador) VALUES (?, ?)";
+        try (Connection conexion = ConectionDB.conectar()) {
+            conexion.setAutoCommit(false);
+            try (PreparedStatement sentencia = conexion.prepareStatement(actualizar);
+                 PreparedStatement quitar = conexion.prepareStatement(quitarEquipo);
+                 PreparedStatement asignar = conexion.prepareStatement(asignarEquipo)) {
+                sentencia.setString(1, nombre);
+                sentencia.setString(2, posicion);
+                sentencia.setInt(3, numero);
+                sentencia.setInt(4, edad);
+                sentencia.setString(5, nacionalidad);
+                sentencia.setBoolean(6, capitan);
+                sentencia.setInt(7, idJugador);
+                if (sentencia.executeUpdate() == 0 && !existeRegistro(
+                        conexion, "jugadores", "id_jugador", idJugador)) {
+                    throw new SQLException("El jugador ya no existe en la base de datos.");
+                }
+                quitar.setInt(1, idJugador);
+                quitar.executeUpdate();
+                asignar.setInt(1, idEquipo);
+                asignar.setInt(2, idJugador);
+                asignar.executeUpdate();
+                conexion.commit();
+            } catch (SQLException ex) {
+                conexion.rollback();
+                throw ex;
             }
-        } catch (SQLException ex) {
-            System.err.println("❌ Error en consulta equipos: " + ex.getMessage());
         }
     }
 
-    /** Cuenta jugadores por equipo */
-    public static void mostrarConteoPorEquipo() {
-        String sql = "SELECT e.nombre, COUNT(ej.idJugador) AS total " +
-                     "FROM equipo e " +
-                     "LEFT JOIN equipo_jugador ej ON e.idEquipo = ej.idEquipo " +
-                     "GROUP BY e.idEquipo";
-        try (Connection c = ConectionDB.conectar();
-             Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-
-            System.out.println("\n--- Jugadores por equipo ---");
-            while (rs.next()) {
-                System.out.printf("  %-25s → %d jugadores%n",
-                    rs.getString("nombre"), rs.getInt("total"));
+    public static void eliminarJugador(int idJugador) throws SQLException {
+        String sql = "DELETE FROM jugadores WHERE id_jugador = ?";
+        try (Connection conexion = ConectionDB.conectar();
+             PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, idJugador);
+            if (sentencia.executeUpdate() == 0) {
+                throw new SQLException("El jugador ya no existe en la base de datos.");
             }
-        } catch (SQLException ex) {
-            System.err.println("❌ Error en conteo: " + ex.getMessage());
+        }
+    }
+
+    private static boolean existeRegistro(Connection conexion, String tabla, String columna, int id)
+            throws SQLException {
+        String sql = "SELECT 1 FROM " + tabla + " WHERE " + columna + " = ?";
+        try (PreparedStatement sentencia = conexion.prepareStatement(sql)) {
+            sentencia.setInt(1, id);
+            try (ResultSet resultado = sentencia.executeQuery()) {
+                return resultado.next();
+            }
         }
     }
 }
