@@ -1,19 +1,24 @@
-import conection.ConectionDB;
+import conection.LigaDAO;
 import controlador.ControladorApp;
 import vista.VentanaLogin;
 import vista.VentanaPrincipal;
 
+import javax.swing.JOptionPane;
 import javax.swing.UIManager;
-import java.sql.Connection;
 import java.sql.SQLException;
 
 public class MainDBVoley {
 
     public static void main(String[] args) {
-        try (Connection conexion = ConectionDB.conectar()) {
-            System.out.println("Conectado a MySQL: " + conexion.getCatalog());
+        try {
+            LigaDAO.comprobarEsquema();
         } catch (SQLException ex) {
-            System.err.println("No se pudo conectar a MySQL: " + ex.getMessage());
+            JOptionPane.showMessageDialog(null,
+                    "No se pudo conectar a MySQL o falta alguna tabla necesaria:\n"
+                            + ex.getMessage()
+                            + "\n\nConfigura VOLEY_DB_URL, VOLEY_DB_USER y VOLEY_DB_PASSWORD.",
+                    "Error de base de datos", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
         try {

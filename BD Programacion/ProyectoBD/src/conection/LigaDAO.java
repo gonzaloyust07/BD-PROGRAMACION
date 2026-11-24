@@ -26,6 +26,15 @@ public class LigaDAO {
         }
     }
 
+    public static void comprobarEsquema() throws SQLException {
+        String sql = "SELECT 1 FROM usuarios, equipos, jugadores, equipo_jugador, ccaa LIMIT 0";
+        try (Connection conexion = ConectionDB.conectar();
+             Statement sentencia = conexion.createStatement();
+             ResultSet resultado = sentencia.executeQuery(sql)) {
+            resultado.next();
+        }
+    }
+
     public static List<EquipoLiga> obtenerEquipos() throws SQLException {
         List<EquipoLiga> equipos = new ArrayList<>();
         String sql = "SELECT e.id_equipo, e.nombre, e.rama, e.division, e.localidad, " +
@@ -68,10 +77,10 @@ public class LigaDAO {
     public static List<JugadorLiga> obtenerJugadores(int idEquipo) throws SQLException {
         List<JugadorLiga> jugadores = new ArrayList<>();
         String sql = "SELECT j.id_jugador, j.nombre, j.posicion, j.numero, j.edad, " +
-                "j.nacionalidad, j.capitan, e.id_equipo, e.nombre AS equipo " +
-                "FROM jugadores j JOIN equipo_jugador ej ON j.id_jugador = ej.id_jugador " +
-                "JOIN equipos e ON ej.id_equipo = e.id_equipo " +
-                "WHERE ? = 0 OR e.id_equipo = ? ORDER BY j.nombre";
+                "j.nacionalidad, j.capitan, e.id_equipo, COALESCE(e.nombre, 'Sin equipo') AS equipo " +
+                "FROM jugadores j LEFT JOIN equipo_jugador ej ON j.id_jugador = ej.id_jugador " +
+                "LEFT JOIN equipos e ON ej.id_equipo = e.id_equipo " +
+                "WHERE ? = 0 OR ej.id_equipo = ? ORDER BY j.nombre";
         try (Connection conexion = ConectionDB.conectar();
              PreparedStatement sentencia = conexion.prepareStatement(sql)) {
             sentencia.setInt(1, idEquipo);
