@@ -1,11 +1,3 @@
--- Instalacion completa de la base de datos de Voley Gestion.
--- Este archivo crea la estructura final, carga los datos de equipos y
--- comunidades de la base actual y asigna un jugador de ejemplo a cada equipo.
---
--- Ejecutar una sola vez en una instalacion nueva de MySQL, donde no exista
--- ya el esquema voleibol_espana. No borra bases de datos existentes.
--- El usuario inicial de la aplicacion es admin / admin (solo para la practica).
-
 CREATE DATABASE IF NOT EXISTS voleibol_espana
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_spanish_ci;
