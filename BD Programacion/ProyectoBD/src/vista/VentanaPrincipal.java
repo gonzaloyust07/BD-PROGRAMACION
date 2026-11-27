@@ -97,7 +97,7 @@ public class VentanaPrincipal extends JFrame {
         menuJugadores.addSeparator();
         menuJugadores.add(itemPDFJugador);
 
-        Image fondo = new ImageIcon(cargarImagen("/imagenes/fondo.jpg")).getImage();
+        Image fondo = new ImageIcon(cargarImagen("/imagenes/LogoSinFondo.png")).getImage();
         JPanel panelPrincipal = new JPanel(new BorderLayout(0, 12)) {
             @Override
             protected void paintComponent(Graphics g) {

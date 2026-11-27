@@ -5,7 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class ConectionDB {
-    private static final String URL_PREDETERMINADA = "jdbc:mysql://localhost:3306/voleibol_espana?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8";
+    private static final String URL_PREDETERMINADA = "jdbc:mysql://localhost:3306/voleibol_espana?useSSL=false&serverTimezone=UTC";
 
     public static Connection conectar() throws SQLException {
         return DriverManager.getConnection(

@@ -27,7 +27,7 @@ public class VentanaLogin extends JFrame {
 
         JPanel cabecera = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
         cabecera.setOpaque(false);
-        ImageIcon logoOriginal = new ImageIcon(cargarImagen("/imagenes/logo.jpg"));
+        ImageIcon logoOriginal = new ImageIcon(cargarImagen("/imagenes/LogoSinFondo.png"));
         int altoLogo = 66;
         int anchoLogo = logoOriginal.getIconWidth() * altoLogo / logoOriginal.getIconHeight();
         JLabel logo = new JLabel(new ImageIcon(logoOriginal.getImage()
